@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ymd, startOfWeekMonday, addDays } from "../lib/dates.js";
 import { HABITS } from "../lib/constants.js";
+import { useHabits } from "../hooks/useHabits.js";
 
 const plannerApi = typeof window !== "undefined" ? window.plannerApi : null;
 const workoutApi = typeof window !== "undefined" ? window.workoutApi : null;
@@ -17,6 +18,7 @@ const MONTH_NAMES = [
 ];
 
 export default function ReportPage() {
+  const { habits: HABITS_LIST } = useHabits();
   const today = useMemo(() => new Date(), []);
   const [mode, setMode] = useState("week"); // "week" | "month"
   const [weekStart, setWeekStart] = useState(() => startOfWeekMonday(today));
@@ -86,7 +88,7 @@ export default function ReportPage() {
     for (const key of entryKeys) {
       const e = entries[key];
       if (e?.habits) {
-        for (const h of HABITS) {
+        for (const h of HABITS_LIST) {
           habitTotal++;
           if (e.habits[h]) habitDone++;
         }
@@ -173,7 +175,7 @@ export default function ReportPage() {
       medMinutes, medSessions,
       activeGoals, completedGoals,
     };
-  }, [data, range]);
+  }, [HABITS_LIST, data, range]);
 
   const goPrev = () => {
     if (mode === "week") setWeekStart(d => addDays(d, -7));

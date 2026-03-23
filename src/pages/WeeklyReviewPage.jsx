@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ymd, startOfWeekMonday, addDays } from "../lib/dates.js";
 import { HABITS } from "../lib/constants.js";
+import { useHabits } from "../hooks/useHabits.js";
 
 const plannerApi = typeof window !== "undefined" ? window.plannerApi : null;
 const workoutApi = typeof window !== "undefined" ? window.workoutApi : null;
@@ -15,6 +16,7 @@ const goalsApi = typeof window !== "undefined" ? window.goalsApi : null;
 const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 export default function WeeklyReviewPage() {
+  const { habits: HABITS_LIST } = useHabits();
   const [weekStart, setWeekStart] = useState(() => startOfWeekMonday(new Date()));
   const wsStr = useMemo(() => ymd(weekStart), [weekStart]);
   const endStr = useMemo(() => ymd(addDays(weekStart, 6)), [weekStart]);
@@ -67,11 +69,11 @@ export default function WeeklyReviewPage() {
     // Habits
     let habitTotal = 0, habitDone = 0;
     const habitBreakdown = {};
-    for (const h of HABITS) habitBreakdown[h] = { done: 0, total: 0 };
+    for (const h of HABITS_LIST) habitBreakdown[h] = { done: 0, total: 0 };
     for (const key of entryKeys) {
       const e = weekData[key];
       if (e?.habits) {
-        for (const h of HABITS) {
+        for (const h of HABITS_LIST) {
           habitTotal++;
           habitBreakdown[h].total++;
           if (e.habits[h]) { habitDone++; habitBreakdown[h].done++; }
@@ -171,7 +173,7 @@ export default function WeeklyReviewPage() {
       journalDays: journalData.length,
       allWins, allGrateful, allGoals, allJournals,
     };
-  }, [weekData, workoutData, focusData, sleepData, waterData, medData, journalData, goalsData, weekStart]);
+  }, [HABITS_LIST, weekData, workoutData, focusData, sleepData, waterData, medData, journalData, goalsData, weekStart]);
 
   // Energy audit
   const energyLevels = review?.energy || {};
@@ -293,7 +295,7 @@ export default function WeeklyReviewPage() {
               <div className="reviewSection">
                 <div className="reviewSectionTitle">Habits Breakdown</div>
                 <div className="reviewHabitList">
-                  {HABITS.map(h => {
+                  {HABITS_LIST.map(h => {
                     const b = stats.habitBreakdown[h];
                     const pct = b.total ? Math.round((b.done / b.total) * 100) : 0;
                     return (

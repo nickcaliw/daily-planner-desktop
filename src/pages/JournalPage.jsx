@@ -100,7 +100,13 @@ export default function JournalPage() {
           {loading ? (
             <div className="loadingMsg">Loading…</div>
           ) : entries.length === 0 ? (
-            <div className="jnlEmpty">No entries yet. Start writing!</div>
+            <div className="jnlEmpty">
+              <div className="emptyState">
+                <div className="emptyStateIcon">📝</div>
+                <div className="emptyStateTitle">Your journal is waiting</div>
+                <div className="emptyStateSub">Capture your thoughts, reflect on your day, and track your mood. Tap "Today's Entry" to write your first entry.</div>
+              </div>
+            </div>
           ) : (
             <div className="jnlEntries">
               {entries.map((e) => {

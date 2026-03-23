@@ -3,8 +3,9 @@ import { HABITS } from "../lib/constants.js";
 import { ymd, addDays, startOfWeekMonday } from "../lib/dates.js";
 import { bestStreakForHabit, currentStreakEndingOn } from "../lib/habits.js";
 import { useWeekData } from "../hooks/useDb.js";
+import { useHabits } from "../hooks/useHabits.js";
 
-function buildHeatmapWeeks(allData, today) {
+function buildHeatmapWeeks(allData, today, habitsList) {
   // Build 52 weeks of data ending on today's week
   const weeks = [];
   const endWeek = startOfWeekMonday(today);
@@ -17,9 +18,9 @@ function buildHeatmapWeeks(allData, today) {
       const entry = allData?.[key];
       let done = 0;
       if (entry?.habits) {
-        for (const h of HABITS) if (entry.habits[h]) done++;
+        for (const h of habitsList) if (entry.habits[h]) done++;
       }
-      const pct = HABITS.length ? Math.round((done / HABITS.length) * 100) : 0;
+      const pct = habitsList.length ? Math.round((done / habitsList.length) * 100) : 0;
       const isFuture = date > today;
       days.push({ key, pct, isFuture, date });
     }
@@ -38,6 +39,7 @@ function heatColor(pct, isFuture) {
 }
 
 export default function HabitsPage() {
+  const { habits: HABITS_LIST } = useHabits();
   const today = useMemo(() => new Date(), []);
   const todayStr = useMemo(() => ymd(today), [today]);
   const [view, setView] = useState("matrix"); // "matrix" | "heatmap" | "monthly"
@@ -57,7 +59,7 @@ export default function HabitsPage() {
 
   // Weekly stats per habit
   const habitStats = useMemo(() => {
-    return HABITS.map((h) => {
+    return HABITS_LIST.map((h) => {
       let weekDone = 0;
       for (const d of weekDates) {
         const key = ymd(d);
@@ -67,7 +69,7 @@ export default function HabitsPage() {
       const best = bestStreakForHabit(allData, h);
       return { name: h, weekDone, streak, best };
     });
-  }, [weekData, allData, weekDates, todayStr]);
+  }, [HABITS_LIST, weekData, allData, weekDates, todayStr]);
 
   // Overall weekly completion
   const overallStats = useMemo(() => {
@@ -76,14 +78,14 @@ export default function HabitsPage() {
     for (const d of weekDates) {
       const key = ymd(d);
       const entry = weekData[key];
-      for (const h of HABITS) {
+      for (const h of HABITS_LIST) {
         total++;
         if (entry?.habits?.[h]) done++;
       }
     }
     const pct = total ? Math.round((done / total) * 100) : 0;
     return { total, done, pct };
-  }, [weekData, weekDates]);
+  }, [HABITS_LIST, weekData, weekDates]);
 
   // Per-day completion
   const dayStats = useMemo(() => {
@@ -91,10 +93,10 @@ export default function HabitsPage() {
       const key = ymd(d);
       const entry = weekData[key];
       let done = 0;
-      for (const h of HABITS) if (entry?.habits?.[h]) done++;
-      return { date: d, dateStr: key, done, pct: Math.round((done / HABITS.length) * 100) };
+      for (const h of HABITS_LIST) if (entry?.habits?.[h]) done++;
+      return { date: d, dateStr: key, done, pct: Math.round((done / HABITS_LIST.length) * 100) };
     });
-  }, [weekData, weekDates]);
+  }, [HABITS_LIST, weekData, weekDates]);
 
   const toggleHabit = (dateStr, habit) => {
     const entry = weekData[dateStr] || {
@@ -117,19 +119,19 @@ export default function HabitsPage() {
   })();
 
   // Heatmap data (52 weeks)
-  const heatmapWeeks = useMemo(() => buildHeatmapWeeks(allData, today), [allData, today]);
+  const heatmapWeeks = useMemo(() => buildHeatmapWeeks(allData, today, HABITS_LIST), [allData, today, HABITS_LIST]);
 
   // Streak milestones
   const streakMilestones = useMemo(() => {
     const milestones = [];
-    for (const h of HABITS) {
+    for (const h of HABITS_LIST) {
       const streak = currentStreakEndingOn(allData, todayStr, h);
       const best = bestStreakForHabit(allData, h);
       if (streak >= 7) milestones.push({ habit: h, streak, best, type: "active" });
     }
     milestones.sort((a, b) => b.streak - a.streak);
     return milestones;
-  }, [allData, todayStr]);
+  }, [HABITS_LIST, allData, todayStr]);
 
   // --- MONTHLY CHART ---
   const monthDays = useMemo(() => {
@@ -148,20 +150,20 @@ export default function HabitsPage() {
       const entry = allData?.[key];
       let done = 0;
       if (entry?.habits) {
-        for (const h of HABITS) if (entry.habits[h]) done++;
+        for (const h of HABITS_LIST) if (entry.habits[h]) done++;
       }
-      const pct = HABITS.length ? Math.round((done / HABITS.length) * 100) : 0;
+      const pct = HABITS_LIST.length ? Math.round((done / HABITS_LIST.length) * 100) : 0;
       const isFuture = date > today;
       days.push({
         key, day: d, done, pct,
-        metGoal: pct === 100 && HABITS.length > 0,
+        metGoal: pct === 100 && HABITS_LIST.length > 0,
         hasData: done > 0,
         isFuture,
         isToday: key === todayStr,
       });
     }
     return days;
-  }, [monthDate, allData, today, todayStr]);
+  }, [HABITS_LIST, monthDate, allData, today, todayStr]);
 
   const monthLabel = monthDate.toLocaleDateString(undefined, { month: "long", year: "numeric" });
   const canNextMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 1) <= today;
@@ -182,7 +184,7 @@ export default function HabitsPage() {
       const key = ymd(cursor);
       const entry = allData?.[key];
       let allDone = true;
-      for (const h of HABITS) {
+      for (const h of HABITS_LIST) {
         if (!entry?.habits?.[h]) { allDone = false; break; }
       }
       if (!allDone) break;
@@ -190,7 +192,7 @@ export default function HabitsPage() {
       cursor = addDays(cursor, -1);
     }
     return streak;
-  }, [allData, today]);
+  }, [HABITS_LIST, allData, today]);
 
   // Total days with any habits logged
   const totalActiveDays = useMemo(() => {
@@ -198,13 +200,13 @@ export default function HabitsPage() {
     for (const key of Object.keys(allData || {})) {
       const entry = allData[key];
       if (entry?.habits) {
-        for (const h of HABITS) {
+        for (const h of HABITS_LIST) {
           if (entry.habits[h]) { count++; break; }
         }
       }
     }
     return count;
-  }, [allData]);
+  }, [HABITS_LIST, allData]);
 
   return (
     <div className="habitsPage">
@@ -377,7 +379,7 @@ export default function HabitsPage() {
           {/* Per-habit streak list */}
           <div className="hbStreakList">
             <div className="hbStreakListTitle">All Habits</div>
-            {HABITS.map((h) => {
+            {HABITS_LIST.map((h) => {
               const streak = currentStreakEndingOn(allData, todayStr, h);
               const best = bestStreakForHabit(allData, h);
               return (

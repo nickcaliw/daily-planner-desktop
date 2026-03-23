@@ -245,7 +245,11 @@ export default function GoalsPage() {
             </div>
           ) : (
             <div className="ntPlaceholder">
-              <div className="ntPlaceholderText">Select a goal or create a new one</div>
+              <div className="emptyState">
+                <div className="emptyStateIcon">🎯</div>
+                <div className="emptyStateTitle">Set your sights on something great</div>
+                <div className="emptyStateSub">Select a goal from the list or create a new one to start tracking your progress with milestones and deadlines.</div>
+              </div>
             </div>
           )}
         </div>

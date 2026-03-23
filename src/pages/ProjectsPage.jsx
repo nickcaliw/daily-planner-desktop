@@ -143,8 +143,12 @@ export default function ProjectsPage() {
             );
           })}
           {filtered.length === 0 && (
-            <div style={{ fontSize: 14, color: "var(--muted)", textAlign: "center", padding: "40px 0" }}>
-              No {filter === "all" ? "" : filter} projects yet.
+            <div style={{ textAlign: "center", padding: "40px 0" }}>
+              <div className="emptyState">
+                <div className="emptyStateIcon">📁</div>
+                <div className="emptyStateTitle">No {filter === "all" ? "" : filter} projects yet</div>
+                <div className="emptyStateSub">Projects help you organize tasks and track progress toward bigger goals. Click "+ New Project" to kick one off.</div>
+              </div>
             </div>
           )}
         </div>

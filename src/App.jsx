@@ -3,6 +3,7 @@ import { HABITS, HOURS, defaultEntry } from "./lib/constants.js";
 import { ymd, addDays, startOfWeekMonday, formatRange, isoWeekYear } from "./lib/dates.js";
 import { defaultHabits, progressFor, currentStreakEndingOn, bestStreakForHabit } from "./lib/habits.js";
 import { useWeekData } from "./hooks/useDb.js";
+import { useHabits } from "./hooks/useHabits.js";
 import AutoGrowTextarea from "./components/AutoGrowTextarea.jsx";
 import Sidebar from "./components/Sidebar.jsx";
 import StarRating from "./components/StarRating.jsx";
@@ -57,7 +58,9 @@ import CleaningSchedulePage from "./pages/CleaningSchedulePage.jsx";
 import SubscriptionsPage from "./pages/SubscriptionsPage.jsx";
 import GlobalSearch from "./components/GlobalSearch.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
+import Onboarding from "./components/Onboarding.jsx";
 
+const settingsApiApp = typeof window !== "undefined" ? window.settingsApi : null;
 
 function PlaceholderPage({ title }) {
   return (
@@ -75,12 +78,27 @@ function PlaceholderPage({ title }) {
 }
 
 export default function App() {
+  const { habits: HABITS_LIST } = useHabits();
   const [activePage, setActivePage] = useState("dashboard");
   const [weekStart, setWeekStart] = useState(() => startOfWeekMonday(new Date()));
   const [plannerView, setPlannerView] = useState("3day"); // "3day" or "week"
   const [searchOpen, setSearchOpen] = useState(false);
   const [weightUnit, setWeightUnit] = useState("lbs");
   const todayStr = useMemo(() => ymd(new Date()), []);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
+
+  // Check if onboarding is needed
+  useEffect(() => {
+    if (settingsApiApp) {
+      settingsApiApp.get("onboarding_complete").then(val => {
+        if (!val) setShowOnboarding(true);
+        setOnboardingChecked(true);
+      });
+    } else {
+      setOnboardingChecked(true);
+    }
+  }, []);
 
   // Load saved weight unit preference
   useEffect(() => {
@@ -144,13 +162,13 @@ export default function App() {
 
   const bestByHabit = useMemo(() => {
     const out = {};
-    for (const h of HABITS) out[h] = bestStreakForHabit(allData, h);
+    for (const h of HABITS_LIST) out[h] = bestStreakForHabit(allData, h);
     return out;
-  }, [allData]);
+  }, [allData, HABITS_LIST]);
 
   const updateDay = (dateStr, patch) => {
     if (loading) return; // Don't save until data is loaded
-    const current = weekData[dateStr] || defaultEntry(dateStr);
+    const current = weekData[dateStr] || defaultEntry(dateStr, HABITS_LIST);
     const next = typeof patch === "function" ? patch(current) : { ...current, ...patch };
     saveDay(dateStr, next);
   };
@@ -190,6 +208,12 @@ export default function App() {
   const goToday = () => setWeekStart(startOfWeekMonday(new Date()));
 
   const displayDates = plannerView === "3day" ? threeDayDates : weekDates;
+
+  if (!onboardingChecked) return null;
+
+  if (showOnboarding) {
+    return <Onboarding onComplete={() => { setShowOnboarding(false); window.location.reload(); }} />;
+  }
 
   return (
     <div className="appShell">
@@ -273,7 +297,7 @@ export default function App() {
                 <div className={`weekGrid ${plannerView === "3day" ? "threeDayGrid" : ""}`}>
                   {displayDates.map((d) => {
                     const dateStr = ymd(d);
-                    const day = weekData[dateStr] || defaultEntry(dateStr);
+                    const day = weekData[dateStr] || defaultEntry(dateStr, HABITS_LIST);
                     const isToday = dateStr === todayStr;
 
                     const dayName = plannerView === "3day"
@@ -287,7 +311,7 @@ export default function App() {
                     if (!Array.isArray(day.top3)) day.top3 = day.priorities || ["", "", ""];
                     if (!Array.isArray(day.wins)) day.wins = ["", "", ""];
 
-                    const { done, total, pct } = progressFor(day);
+                    const { done, total, pct } = progressFor(day, HABITS_LIST);
 
                     return (
                       <div className={`dayCol ${isToday ? "isToday" : ""}`} key={dateStr}>
@@ -566,8 +590,8 @@ export default function App() {
                                     className="miniBtn"
                                     onClick={() =>
                                       updateDay(dateStr, (cur) => {
-                                        const next = { ...(cur.habits || defaultHabits()) };
-                                        HABITS.forEach((h) => (next[h] = true));
+                                        const next = { ...(cur.habits || defaultHabits(HABITS_LIST)) };
+                                        HABITS_LIST.forEach((h) => (next[h] = true));
                                         return { ...cur, habits: next };
                                       })
                                     }
@@ -579,8 +603,8 @@ export default function App() {
                                     className="miniBtn"
                                     onClick={() =>
                                       updateDay(dateStr, (cur) => {
-                                        const next = { ...(cur.habits || defaultHabits()) };
-                                        HABITS.forEach((h) => (next[h] = false));
+                                        const next = { ...(cur.habits || defaultHabits(HABITS_LIST)) };
+                                        HABITS_LIST.forEach((h) => (next[h] = false));
                                         return { ...cur, habits: next };
                                       })
                                     }
@@ -604,7 +628,7 @@ export default function App() {
                               </div>
 
                               <div className="habitList">
-                                {HABITS.map((h) => {
+                                {HABITS_LIST.map((h) => {
                                   const checked = !!day.habits?.[h];
                                   const curStreak = currentStreakEndingOn(allData, dateStr, h);
                                   const best = bestByHabit[h] || 0;
@@ -615,7 +639,7 @@ export default function App() {
                                       className={`habitRow ${checked ? "checked" : ""}`}
                                       onClick={() =>
                                         updateDay(dateStr, (cur) => {
-                                          const next = { ...(cur.habits || defaultHabits()) };
+                                          const next = { ...(cur.habits || defaultHabits(HABITS_LIST)) };
                                           next[h] = !next[h];
                                           return { ...cur, habits: next };
                                         })

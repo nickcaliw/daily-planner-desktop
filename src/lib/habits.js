@@ -1,17 +1,19 @@
 import { HABITS } from "./constants.js";
 import { ymd, addDays, parseYMD } from "./dates.js";
 
-export function defaultHabits() {
+export function defaultHabits(habitsList) {
+  const list = habitsList || HABITS;
   const obj = {};
-  HABITS.forEach((h) => (obj[h] = false));
+  list.forEach((h) => (obj[h] = false));
   return obj;
 }
 
-export function progressFor(day) {
+export function progressFor(day, habitsList) {
+  const list = habitsList || HABITS;
   const habits = day?.habits || {};
-  const total = HABITS.length;
+  const total = list.length;
   let done = 0;
-  for (const h of HABITS) if (habits[h]) done++;
+  for (const h of list) if (habits[h]) done++;
   const pct = total ? Math.round((done / total) * 100) : 0;
   return { done, total, pct };
 }

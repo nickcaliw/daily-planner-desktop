@@ -147,6 +147,11 @@ export default function Sidebar({ activePage, onNavigate }) {
         defaults[entry.section] = entry.defaultOpen ?? false;
       }
     });
+    // Try to load saved state
+    try {
+      const saved = localStorage.getItem("sidebar_sections");
+      if (saved) return { ...defaults, ...JSON.parse(saved) };
+    } catch { /* use defaults */ }
     return defaults;
   });
 
@@ -157,6 +162,11 @@ export default function Sidebar({ activePage, onNavigate }) {
       document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light");
     });
   }, []);
+
+  // Persist sidebar collapse state
+  useEffect(() => {
+    localStorage.setItem("sidebar_sections", JSON.stringify(openSections));
+  }, [openSections]);
 
   /* Auto-expand section when the active page is inside a collapsed section */
   useEffect(() => {

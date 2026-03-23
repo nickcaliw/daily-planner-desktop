@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ymd, startOfWeekMonday, addDays } from "../lib/dates.js";
 import { HABITS, HOURS, defaultEntry } from "../lib/constants.js";
 import { defaultHabits, progressFor, currentStreakEndingOn, bestStreakForHabit } from "../lib/habits.js";
+import { useHabits } from "../hooks/useHabits.js";
 import { getWorkoutForDate } from "../lib/workouts.js";
 import { getQuoteForDate } from "../lib/quotes.js";
 import { getVerseForDate } from "../lib/bible.js";
@@ -43,6 +44,9 @@ export default function DashboardPage({ onNavigate }) {
     if (h < 17) return "Good afternoon";
     return "Good evening";
   }, [today]);
+
+  const { habits: HABITS_LIST } = useHabits();
+  const [userName, setUserName] = useState("");
 
   // ── Planner state (editable) ──
   const [dayData, setDayData] = useState(null);
@@ -154,7 +158,7 @@ export default function DashboardPage({ onNavigate }) {
     async function load() {
       if (plannerApi) {
         const e = await plannerApi.getDay(todayStr);
-        setDayData(e || defaultEntry(todayStr));
+        setDayData(e || defaultEntry(todayStr, HABITS_LIST));
         const ws = startOfWeekMonday(today);
         const [range, all] = await Promise.all([
           plannerApi.getRange(ymd(ws), ymd(addDays(ws, 6))),
@@ -163,7 +167,7 @@ export default function DashboardPage({ onNavigate }) {
         setWeekData(range || {});
         setAllData(all || {});
       } else {
-        setDayData(defaultEntry(todayStr));
+        setDayData(defaultEntry(todayStr, HABITS_LIST));
       }
       if (workoutApi) setWorkoutLog(await workoutApi.get(todayStr));
       if (journalApi) setJournalEntry(await journalApi.get(todayStr));
@@ -191,6 +195,8 @@ export default function DashboardPage({ onNavigate }) {
       if (settingsApi) {
         const wu = await settingsApi.get("weightUnit");
         if (wu) setWeightUnit(wu);
+        const un = await settingsApi.get("user_name");
+        if (un) setUserName(un);
       }
     }
     load();
@@ -199,7 +205,7 @@ export default function DashboardPage({ onNavigate }) {
   // ── Planner save (debounced) ──
   const updateDay = useCallback((patch) => {
     setDayData(prev => {
-      const current = prev || defaultEntry(todayStr);
+      const current = prev || defaultEntry(todayStr, HABITS_LIST);
       const next = typeof patch === "function" ? patch(current) : { ...current, ...patch };
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => {
@@ -216,7 +222,7 @@ export default function DashboardPage({ onNavigate }) {
   };
 
   // ── Derived data ──
-  const day = dayData || defaultEntry(todayStr);
+  const day = dayData || defaultEntry(todayStr, HABITS_LIST);
   if (!Array.isArray(day.top3)) day.top3 = day.priorities || ["", "", ""];
   if (!Array.isArray(day.wins)) day.wins = ["", "", ""];
 
@@ -224,9 +230,9 @@ export default function DashboardPage({ onNavigate }) {
   const quote = useMemo(() => getQuoteForDate(today), [today]);
   const verse = useMemo(() => getVerseForDate(today), [today]);
 
-  const habitsTotal = HABITS.length;
+  const habitsTotal = HABITS_LIST.length;
   let habitsDone = 0;
-  if (day.habits) { for (const h of HABITS) if (day.habits[h]) habitsDone++; }
+  if (day.habits) { for (const h of HABITS_LIST) if (day.habits[h]) habitsDone++; }
   const habitsPct = habitsTotal ? Math.round((habitsDone / habitsTotal) * 100) : 0;
 
   const weekHabitPct = useMemo(() => {
@@ -234,10 +240,10 @@ export default function DashboardPage({ onNavigate }) {
     for (let i = 0; i < 7; i++) {
       const k = ymd(addDays(startOfWeekMonday(today), i));
       const e = weekData[k];
-      for (const h of HABITS) { t++; if (e?.habits?.[h]) d++; }
+      for (const h of HABITS_LIST) { t++; if (e?.habits?.[h]) d++; }
     }
     return t ? Math.round((d / t) * 100) : 0;
-  }, [weekData, today]);
+  }, [weekData, today, HABITS_LIST]);
 
   const n = day.nutrition;
   const hasNutrition = n && (n.calories || n.protein || n.carbs || n.fat);
@@ -265,13 +271,13 @@ export default function DashboardPage({ onNavigate }) {
   const suppDone = supplements.filter(s => !!suppLog[s.id]).length;
   const suppPct = suppTotal ? Math.round((suppDone / suppTotal) * 100) : 0;
 
-  const { done: habitProgress_done, total: habitProgress_total, pct: habitProgress_pct } = progressFor(day);
+  const { done: habitProgress_done, total: habitProgress_total, pct: habitProgress_pct } = progressFor(day, HABITS_LIST);
 
   const bestByHabit = useMemo(() => {
     const out = {};
-    for (const h of HABITS) out[h] = bestStreakForHabit(allData, h);
+    for (const h of HABITS_LIST) out[h] = bestStreakForHabit(allData, h);
     return out;
-  }, [allData]);
+  }, [allData, HABITS_LIST]);
 
   // ── Daily Score ──
   const dailyScore = useMemo(() => {
@@ -314,7 +320,7 @@ export default function DashboardPage({ onNavigate }) {
       let s = 0;
       const habs = e.habits || {};
       let hDone = 0;
-      for (const h of HABITS) if (habs[h]) hDone++;
+      for (const h of HABITS_LIST) if (habs[h]) hDone++;
       s += hDone > 0 ? 1 : 0;
       if (e.goal) s++;
       if (e.grateful) s++;
@@ -325,7 +331,7 @@ export default function DashboardPage({ onNavigate }) {
     }
     best = Math.max(best, current);
     return { current, best };
-  }, [allData]);
+  }, [allData, HABITS_LIST]);
 
   // Insights
   const insights = useMemo(() => {
@@ -371,7 +377,7 @@ export default function DashboardPage({ onNavigate }) {
       {/* ── Topbar ── */}
       <div className="topbar">
         <div className="topbarLeft">
-          <h1 className="pageTitle">{greeting}</h1>
+          <h1 className="pageTitle">{greeting}{userName ? `, ${userName}` : ""}</h1>
           <div className="weekBadge">
             {today.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
           </div>
@@ -752,13 +758,13 @@ export default function DashboardPage({ onNavigate }) {
                     <div className="dpLabel" style={{ marginBottom: 0 }}>Daily habits</div>
                     <div className="habitsActions">
                       <button className="miniBtn" onClick={() => updateDay(cur => {
-                        const next = { ...(cur.habits || defaultHabits()) };
-                        HABITS.forEach(h => (next[h] = true));
+                        const next = { ...(cur.habits || defaultHabits(HABITS_LIST)) };
+                        HABITS_LIST.forEach(h => (next[h] = true));
                         return { ...cur, habits: next };
                       })} type="button">Mark all</button>
                       <button className="miniBtn" onClick={() => updateDay(cur => {
-                        const next = { ...(cur.habits || defaultHabits()) };
-                        HABITS.forEach(h => (next[h] = false));
+                        const next = { ...(cur.habits || defaultHabits(HABITS_LIST)) };
+                        HABITS_LIST.forEach(h => (next[h] = false));
                         return { ...cur, habits: next };
                       })} type="button">Clear</button>
                     </div>
@@ -773,14 +779,14 @@ export default function DashboardPage({ onNavigate }) {
                     </div>
                   </div>
                   <div className="habitList">
-                    {HABITS.map(h => {
+                    {HABITS_LIST.map(h => {
                       const checked = !!day.habits?.[h];
                       const curStreak = currentStreakEndingOn(allData, todayStr, h);
                       const best = bestByHabit[h] || 0;
                       return (
                         <button key={h} className={`habitRow ${checked ? "checked" : ""}`}
                           onClick={() => updateDay(cur => {
-                            const next = { ...(cur.habits || defaultHabits()) };
+                            const next = { ...(cur.habits || defaultHabits(HABITS_LIST)) };
                             next[h] = !next[h];
                             return { ...cur, habits: next };
                           })} type="button">

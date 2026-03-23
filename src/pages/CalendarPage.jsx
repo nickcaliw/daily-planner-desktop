@@ -3,6 +3,7 @@ import { ymd, parseYMD, startOfWeekMonday } from "../lib/dates.js";
 import { HABITS, HOURS } from "../lib/constants.js";
 import { defaultHabits } from "../lib/habits.js";
 import { useMonthData } from "../hooks/useMonthData.js";
+import { useHabits } from "../hooks/useHabits.js";
 import AutoGrowTextarea from "../components/AutoGrowTextarea.jsx";
 
 const api = typeof window !== "undefined" ? window.plannerApi : null;
@@ -14,11 +15,11 @@ const MONTH_NAMES = [
   "July", "August", "September", "October", "November", "December",
 ];
 
-function habitPct(entry) {
-  if (!entry?.habits) return 0;
+function habitPct(entry, habitsList) {
+  if (!entry?.habits || !habitsList?.length) return 0;
   let done = 0;
-  for (const h of HABITS) if (entry.habits[h]) done++;
-  return Math.round((done / HABITS.length) * 100);
+  for (const h of habitsList) if (entry.habits[h]) done++;
+  return Math.round((done / habitsList.length) * 100);
 }
 
 function hasContent(entry) {
@@ -93,6 +94,7 @@ function useDayPersist() {
 }
 
 export default function CalendarPage({ onGoToDay }) {
+  const { habits: HABITS_LIST } = useHabits();
   const today = useMemo(() => new Date(), []);
   const todayStr = useMemo(() => ymd(today), [today]);
 
@@ -190,7 +192,7 @@ export default function CalendarPage({ onGoToDay }) {
                 const entry = data[cell.dateStr];
                 const isToday = cell.dateStr === todayStr;
                 const isSelected = cell.dateStr === selectedDate;
-                const pct = habitPct(entry);
+                const pct = habitPct(entry, HABITS_LIST);
                 const hasData = hasContent(entry);
                 const rating = entry?.rating;
                 const calNote = entry?.calendarNote || "";
@@ -355,15 +357,15 @@ export default function CalendarPage({ onGoToDay }) {
                 </div>
               </div>
 
-              {habitPct(selectedEntry) > 0 && (
+              {habitPct(selectedEntry, HABITS_LIST) > 0 && (
                 <div className="calPanelSection">
                   <div className="label">Habits</div>
                   <div className="calPanelHabitBar">
                     <div className="progressBar">
-                      <div className="progressFill" style={{ width: `${habitPct(selectedEntry)}%` }} />
+                      <div className="progressFill" style={{ width: `${habitPct(selectedEntry, HABITS_LIST)}%` }} />
                     </div>
                     <div className="progressMeta">
-                      <span className="pct">{habitPct(selectedEntry)}%</span>
+                      <span className="pct">{habitPct(selectedEntry, HABITS_LIST)}%</span>
                     </div>
                   </div>
                 </div>

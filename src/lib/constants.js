@@ -22,7 +22,8 @@ export const HOURS = [
   "7PM","8PM","9PM","10PM","11PM","12AM",
 ];
 
-export function defaultEntry(dateStr) {
+export function defaultEntry(dateStr, habitsList) {
+  const hList = habitsList || HABITS;
   return {
     date: dateStr,
     tab: "planner",
@@ -34,7 +35,7 @@ export function defaultEntry(dateStr) {
     notes: "",
     wins: ["", "", ""],
     rating: 3,
-    habits: HABITS.reduce((acc, h) => ((acc[h] = false), acc), {}),
+    habits: hList.reduce((acc, h) => ((acc[h] = false), acc), {}),
     nutrition: { calories: "", protein: "", carbs: "", fat: "" },
     weightAm: "",
     weightPm: "",

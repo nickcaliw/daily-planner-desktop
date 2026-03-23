@@ -114,7 +114,13 @@ export default function NotesPage() {
           {loading ? (
             <div className="loadingMsg">Loading…</div>
           ) : notes.length === 0 ? (
-            <div className="ntEmpty">No notes yet. Create one!</div>
+            <div className="ntEmpty">
+              <div className="emptyState">
+                <div className="emptyStateIcon">📓</div>
+                <div className="emptyStateTitle">No notes yet</div>
+                <div className="emptyStateSub">Jot down ideas, save quick references, or draft something new. Click "+ New Note" to get started.</div>
+              </div>
+            </div>
           ) : (
             <div className="ntEntries">
               {notes.map((n) => (
@@ -164,13 +170,11 @@ export default function NotesPage() {
             </>
           ) : (
             <div className="ntPlaceholder">
-              <div className="ntPlaceholderIcon">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.25">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                </svg>
+              <div className="emptyState">
+                <div className="emptyStateIcon">📓</div>
+                <div className="emptyStateTitle">Pick a note to start editing</div>
+                <div className="emptyStateSub">Select a note from the sidebar, or create a new one to capture your thoughts.</div>
               </div>
-              <div className="ntPlaceholderText">Select a note or create a new one</div>
             </div>
           )}
         </div>

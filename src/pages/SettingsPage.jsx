@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useHabits } from "../hooks/useHabits.js";
+import ConfirmDialog from "../components/ConfirmDialog.jsx";
 
 const settingsApi = typeof window !== "undefined" ? window.settingsApi : null;
 const dataApi = typeof window !== "undefined" ? window.dataApi : null;
@@ -142,6 +144,48 @@ export default function SettingsPage() {
     if (notificationApi) {
       notificationApi.send("Daily Planner", "Notifications are working!");
     }
+  };
+
+  // --- Habits Management ---
+  const { habits, addHabit, removeHabit, renameHabit, reorderHabits } = useHabits();
+  const [newHabit, setNewHabit] = useState("");
+  const [editingHabit, setEditingHabit] = useState(null);
+  const [editingValue, setEditingValue] = useState("");
+  const [confirmDeleteHabit, setConfirmDeleteHabit] = useState(null);
+  const dragIdx = useRef(null);
+  const overIdx = useRef(null);
+
+  const handleAddHabit = () => {
+    if (!newHabit.trim()) return;
+    addHabit(newHabit.trim());
+    setNewHabit("");
+  };
+
+  const handleRenameHabit = () => {
+    if (editingHabit && editingValue.trim()) {
+      renameHabit(editingHabit, editingValue.trim());
+    }
+    setEditingHabit(null);
+    setEditingValue("");
+  };
+
+  const handleDragStart = (idx) => (e) => {
+    dragIdx.current = idx;
+    e.dataTransfer.effectAllowed = "move";
+  };
+  const handleDragOver = (idx) => (e) => {
+    e.preventDefault();
+    overIdx.current = idx;
+  };
+  const handleDragEnd = () => {
+    if (dragIdx.current !== null && overIdx.current !== null && dragIdx.current !== overIdx.current) {
+      const next = [...habits];
+      const [moved] = next.splice(dragIdx.current, 1);
+      next.splice(overIdx.current, 0, moved);
+      reorderHabits(next);
+    }
+    dragIdx.current = null;
+    overIdx.current = null;
   };
 
   // Format last backup date
@@ -311,6 +355,81 @@ export default function SettingsPage() {
             </div>
           </div>
         </section>
+
+        {/* Habits Configuration */}
+        <section className="settSection">
+          <h2 className="settSectionTitle">Habits</h2>
+          <div className="settCard">
+            <div className="settDesc" style={{ padding: "0 0 12px" }}>
+              Customize your daily habit checklist. Drag to reorder.
+            </div>
+            <div className="settHabitList">
+              {habits.map((h, idx) => (
+                <div
+                  key={h}
+                  className="settHabitRow"
+                  draggable
+                  onDragStart={handleDragStart(idx)}
+                  onDragOver={handleDragOver(idx)}
+                  onDragEnd={handleDragEnd}
+                >
+                  <div className="settHabitGrip" title="Drag to reorder">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                      <circle cx="9" cy="5" r="2"/><circle cx="15" cy="5" r="2"/>
+                      <circle cx="9" cy="12" r="2"/><circle cx="15" cy="12" r="2"/>
+                      <circle cx="9" cy="19" r="2"/><circle cx="15" cy="19" r="2"/>
+                    </svg>
+                  </div>
+                  {editingHabit === h ? (
+                    <input
+                      className="settHabitInput"
+                      value={editingValue}
+                      onChange={e => setEditingValue(e.target.value)}
+                      onBlur={handleRenameHabit}
+                      onKeyDown={e => { if (e.key === "Enter") handleRenameHabit(); if (e.key === "Escape") { setEditingHabit(null); setEditingValue(""); } }}
+                      autoFocus
+                    />
+                  ) : (
+                    <div className="settHabitName" onDoubleClick={() => { setEditingHabit(h); setEditingValue(h); }}>
+                      {h}
+                    </div>
+                  )}
+                  <button className="settHabitEdit" onClick={() => { setEditingHabit(h); setEditingValue(h); }} type="button" title="Rename">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                  </button>
+                  <button className="settHabitDel" onClick={() => setConfirmDeleteHabit(h)} type="button" title="Remove">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="settHabitAdd">
+              <input
+                className="settHabitInput"
+                placeholder="Add a new habit..."
+                value={newHabit}
+                onChange={e => setNewHabit(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") handleAddHabit(); }}
+              />
+              <button className="btn btnPrimary" onClick={handleAddHabit} type="button">Add</button>
+            </div>
+          </div>
+        </section>
+
+        <ConfirmDialog
+          open={!!confirmDeleteHabit}
+          title="Remove Habit"
+          message={`Remove "${confirmDeleteHabit}" from your habit list? Your historical data for this habit will be preserved.`}
+          confirmLabel="Remove"
+          danger
+          onConfirm={() => { removeHabit(confirmDeleteHabit); setConfirmDeleteHabit(null); }}
+          onCancel={() => setConfirmDeleteHabit(null)}
+        />
 
         {/* About */}
         <section className="settSection">
