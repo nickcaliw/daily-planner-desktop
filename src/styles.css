@@ -6185,6 +6185,42 @@ body{
   margin-bottom: 6px;
 }
 
+/* ─── Mood / Energy / Tags (shared across Journal + Planner) ─── */
+.jnlMoodPicker{ display: flex; gap: 6px; flex-wrap: wrap; }
+.jnlMoodBtn{
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 8px 12px; border: 1.5px solid var(--line2); border-radius: 10px;
+  background: none; cursor: pointer; transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  font-family: var(--font);
+}
+.jnlMoodBtn:hover{ border-color: var(--line); transform: scale(1.05); }
+.jnlMoodActive{ transform: scale(1.1); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.jnlMoodEmoji{ font-size: 24px; }
+.jnlMoodLabel{ font-size: 11px; font-weight: 600; color: var(--muted); }
+.jnlMoodActive .jnlMoodLabel{ color: var(--ink); }
+
+.jnlEnergyPicker{ display: flex; gap: 6px; flex-wrap: wrap; }
+.jnlEnergyBtn{
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 8px 12px; border: 1.5px solid var(--line2); border-radius: 10px;
+  background: none; cursor: pointer; transition: all 0.15s; font-family: var(--font);
+}
+.jnlEnergyBtn:hover{ border-color: var(--line); }
+.jnlEnergyActive{ border-color: var(--accent); background: var(--accent-soft); }
+.jnlEnergyBars{ display: flex; align-items: flex-end; gap: 2px; height: 20px; }
+.jnlEnergyBar{ width: 4px; border-radius: 2px; transition: background 0.15s; }
+.jnlEnergyLabel{ font-size: 10px; font-weight: 600; color: var(--muted); }
+.jnlEnergyActive .jnlEnergyLabel{ color: var(--accent); }
+
+.jnlTagPicker{ display: flex; flex-wrap: wrap; gap: 6px; }
+.jnlTag{
+  padding: 5px 12px; border: 1.5px solid var(--line2); border-radius: 20px;
+  background: none; font-size: 12px; font-weight: 600; color: var(--muted);
+  cursor: pointer; transition: all 0.15s; font-family: var(--font);
+}
+.jnlTag:hover{ border-color: var(--accent); color: var(--ink); }
+.jnlTagActive{ background: var(--accent); color: #fff; border-color: var(--accent); }
+
 /* ============================================================
    Weekly Energy Audit
    ============================================================ */

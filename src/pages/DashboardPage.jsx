@@ -883,14 +883,73 @@ export default function DashboardPage({ onNavigate }) {
                 </div>
               </>
             ) : plannerTab === "journal" ? (
-              <div className="dpSection">
-                <div className="dpLabel">Journal</div>
-                <AutoGrowTextarea
-                  value={day.journal || ""}
-                  onChange={v => updateDay(cur => ({ ...cur, journal: v }))}
-                  placeholder="Write your thoughts..."
-                  className="input inputJournal" rows={10} minHeight={300} maxHeight={800} />
-              </div>
+              <>
+                <div className="dpSection">
+                  <div className="dpLabel">How are you feeling?</div>
+                  <div className="jnlMoodPicker">
+                    {[
+                      { value: "great", label: "Great", emoji: "😄", color: "#27ae60" },
+                      { value: "good", label: "Good", emoji: "🙂", color: "#2ecc71" },
+                      { value: "okay", label: "Okay", emoji: "😐", color: "#f1c40f" },
+                      { value: "low", label: "Low", emoji: "😔", color: "#e67e22" },
+                      { value: "tough", label: "Tough", emoji: "😢", color: "#e74c3c" },
+                    ].map(m => (
+                      <button key={m.value}
+                        className={`jnlMoodBtn ${day.journalMood === m.value ? "jnlMoodActive" : ""}`}
+                        style={day.journalMood === m.value ? { background: m.color + "20", borderColor: m.color } : {}}
+                        onClick={() => updateDay(cur => ({ ...cur, journalMood: m.value }))}
+                        type="button">
+                        <span className="jnlMoodEmoji">{m.emoji}</span>
+                        <span className="jnlMoodLabel">{m.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="dpSection">
+                  <div className="dpLabel">Energy level</div>
+                  <div className="jnlEnergyPicker">
+                    {[{ level: 1, label: "Very Low" }, { level: 2, label: "Low" }, { level: 3, label: "Medium" }, { level: 4, label: "High" }, { level: 5, label: "Very High" }].map(e => (
+                      <button key={e.level}
+                        className={`jnlEnergyBtn ${day.journalEnergy === e.level ? "jnlEnergyActive" : ""}`}
+                        onClick={() => updateDay(cur => ({ ...cur, journalEnergy: e.level }))}
+                        type="button">
+                        <div className="jnlEnergyBars">
+                          {[1,2,3,4,5].map(i => (
+                            <div key={i} className="jnlEnergyBar"
+                              style={{ height: i * 4, background: i <= e.level ? (day.journalEnergy === e.level ? "var(--accent)" : "var(--muted)") : "var(--line2)" }} />
+                          ))}
+                        </div>
+                        <span className="jnlEnergyLabel">{e.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="dpSection">
+                  <div className="dpLabel">What's influencing your mood?</div>
+                  <div className="jnlTagPicker">
+                    {["Work", "Exercise", "Social", "Sleep", "Weather", "Food", "Stress", "Family", "Health", "Creativity"].map(tag => (
+                      <button key={tag}
+                        className={`jnlTag ${(day.journalTags || []).includes(tag) ? "jnlTagActive" : ""}`}
+                        onClick={() => updateDay(cur => {
+                          const prev = cur.journalTags || [];
+                          const next = prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag];
+                          return { ...cur, journalTags: next };
+                        })}
+                        type="button">
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="dpSection">
+                  <div className="dpLabel">Journal</div>
+                  <AutoGrowTextarea
+                    value={day.journal || ""}
+                    onChange={v => updateDay(cur => ({ ...cur, journal: v }))}
+                    placeholder="Write your thoughts..."
+                    className="input inputJournal" rows={10} minHeight={200} maxHeight={800} />
+                </div>
+              </>
             ) : null}
           </div>
         </div>

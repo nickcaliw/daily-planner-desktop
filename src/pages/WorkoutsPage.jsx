@@ -136,23 +136,36 @@ export default function WorkoutsPage() {
         return;
       }
 
-      const existingDates = new Set(await api.allDates() || []);
-      const newDates = allDates.filter(d => !existingDates.has(d));
+      // Check existing workout logs — overwrite if they're just empty templates (completed: false)
+      const existingDates = await api.allDates() || [];
+      const existingSet = new Set(existingDates);
+      const toImport = [];
+      for (const d of allDates) {
+        if (!existingSet.has(d)) {
+          toImport.push(d);
+        } else {
+          // Check if existing is just an empty template
+          const existing = await api.get(d);
+          if (!existing || !existing.completed) {
+            toImport.push(d); // overwrite template with real data
+          }
+        }
+      }
 
-      if (newDates.length === 0) {
+      if (toImport.length === 0) {
         setImportStatus(`All ${allDates.length} workouts already imported`);
         setTimeout(() => setImportStatus(null), 4000);
         return;
       }
 
-      for (const dateStr of newDates) {
+      for (const dateStr of toImport) {
         await api.save(dateStr, parsed[dateStr]);
       }
 
-      const skipped = allDates.length - newDates.length;
+      const skipped = allDates.length - toImport.length;
       const msg = skipped > 0
-        ? `Imported ${newDates.length} new workouts (${skipped} skipped)`
-        : `Imported ${newDates.length} workouts`;
+        ? `Imported ${toImport.length} workouts (${skipped} already existed)`
+        : `Imported ${toImport.length} workouts`;
       setImportStatus(msg);
       setTimeout(() => setImportStatus(null), 5000);
       reload();
