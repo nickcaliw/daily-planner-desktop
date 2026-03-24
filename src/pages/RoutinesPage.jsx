@@ -406,7 +406,8 @@ export default function RoutinesPage() {
           justify-content: center; font-size: 12px; color: #fff;
           flex-shrink: 0; transition: all 0.15s;
         }
-        .routCheckOn { background: #4caf50; border-color: #4caf50; }
+        .routCheckOn { background: #4caf50; border-color: #4caf50; animation: checkPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        @keyframes checkPop{ 0%{ transform: scale(1); } 50%{ transform: scale(1.3); } 100%{ transform: scale(1); } }
         .routStepContent { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
         .routStepText { font-size: 14px; color: var(--ink); }
         .routStepDone .routStepText { text-decoration: line-through; }

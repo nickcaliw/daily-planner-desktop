@@ -179,6 +179,126 @@ export default function WeeklyReviewPage() {
   const energyLevels = review?.energy || {};
   const setEnergy = (day, val) => save({ energy: { ...energyLevels, [day]: Number(val) } });
 
+  // ── Export PDF ──
+  const exportPdf = useCallback(() => {
+    const esc = (s) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
+
+    // Habit rows
+    const habitRows = HABITS_LIST.map(h => {
+      const b = stats.habitBreakdown[h];
+      const pct = b.total ? Math.round((b.done / b.total) * 100) : 0;
+      return `<tr><td>${esc(h)}</td><td>${b.done}/${b.total}</td><td>
+        <div style="background:#e8e0d4;border-radius:4px;height:8px;width:120px">
+          <div style="background:#5B7CF5;border-radius:4px;height:8px;width:${pct}%"></div>
+        </div></td><td>${pct}%</td></tr>`;
+    }).join("");
+
+    // Daily ratings
+    const ratingRows = DAY_NAMES.map((day, i) => {
+      const val = stats.dailyRatings[i] || 0;
+      const color = val >= 4 ? "#4caf50" : val >= 3 ? "#ff9800" : val > 0 ? "#e53935" : "#ccc";
+      return `<span style="display:inline-block;text-align:center;margin-right:12px">
+        <span style="font-weight:600;color:${color};font-size:18px">${val || "—"}</span>
+        <br><span style="font-size:12px;color:#8a7e72">${day.slice(0, 3)}</span></span>`;
+    }).join("");
+
+    // Review notes
+    let reviewHtml = "";
+    if (review?.wins || review?.challenges || review?.lessons || review?.nextWeek) {
+      reviewHtml = `<div class="section"><h2>Reflections</h2>`;
+      if (review.wins) reviewHtml += `<div class="field"><strong>Wins</strong><p>${esc(review.wins)}</p></div>`;
+      if (review.challenges) reviewHtml += `<div class="field"><strong>Challenges</strong><p>${esc(review.challenges)}</p></div>`;
+      if (review.lessons) reviewHtml += `<div class="field"><strong>Lessons Learned</strong><p>${esc(review.lessons)}</p></div>`;
+      if (review.nextWeek) reviewHtml += `<div class="field"><strong>Focus for Next Week</strong><p>${esc(review.nextWeek)}</p></div>`;
+      reviewHtml += `</div>`;
+    }
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Weekly Review – ${esc(weekLabel)}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color:#3d3329; background:#fff; padding:40px; max-width:800px; margin:0 auto; }
+  h1 { font-size:24px; color:#3d3329; margin-bottom:4px; }
+  .subtitle { font-size:14px; color:#8a7e72; margin-bottom:32px; }
+  h2 { font-size:16px; color:#5B7CF5; border-bottom:2px solid #e8e0d4; padding-bottom:6px; margin-bottom:12px; }
+  .section { margin-bottom:28px; }
+  .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:8px; }
+  .stat-card { background:#fbf7f0; border:1px solid #e8e0d4; border-radius:8px; padding:12px; text-align:center; }
+  .stat-val { font-size:22px; font-weight:700; color:#3d3329; }
+  .stat-lbl { font-size:11px; color:#8a7e72; margin-top:2px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { padding:6px 10px; text-align:left; border-bottom:1px solid #e8e0d4; }
+  th { color:#8a7e72; font-weight:600; font-size:11px; text-transform:uppercase; }
+  .field { margin-bottom:12px; }
+  .field strong { font-size:13px; color:#5B7CF5; }
+  .field p { margin-top:4px; font-size:13px; line-height:1.5; color:#3d3329; }
+  .nut-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .nut-item { text-align:center; background:#fbf7f0; border:1px solid #e8e0d4; border-radius:8px; padding:10px; }
+  .nut-val { font-size:18px; font-weight:700; }
+  .nut-lbl { font-size:11px; color:#8a7e72; }
+  @media print {
+    body { padding:20px; }
+    .section { break-inside:avoid; }
+  }
+</style></head><body>
+<h1>Weekly Review</h1>
+<div class="subtitle">${esc(weekLabel)}</div>
+
+<div class="section">
+  <h2>Overview</h2>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-val">${stats.daysLogged}</div><div class="stat-lbl">Days Logged</div></div>
+    <div class="stat-card"><div class="stat-val">${stats.habitPct}%</div><div class="stat-lbl">Habit Completion</div></div>
+    <div class="stat-card"><div class="stat-val">${stats.avgRating}</div><div class="stat-lbl">Avg Day Rating</div></div>
+    <div class="stat-card"><div class="stat-val">${stats.workoutDays}</div><div class="stat-lbl">Workouts</div></div>
+    <div class="stat-card"><div class="stat-val">${stats.focusHours}h</div><div class="stat-lbl">Focus Time</div></div>
+    <div class="stat-card"><div class="stat-val">${stats.avgSleep}h</div><div class="stat-lbl">Avg Sleep</div></div>
+    <div class="stat-card"><div class="stat-val">${stats.waterGoalMet}/${stats.waterDays}</div><div class="stat-lbl">Water Goals Met</div></div>
+    <div class="stat-card"><div class="stat-val">${stats.medMinutes}m</div><div class="stat-lbl">Meditation</div></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Daily Ratings</h2>
+  <div style="padding:8px 0">${ratingRows}</div>
+</div>
+
+<div class="section">
+  <h2>Habits Breakdown (${stats.habitDone}/${stats.habitTotal} — ${stats.habitPct}%)</h2>
+  <table><thead><tr><th>Habit</th><th>Score</th><th>Progress</th><th>%</th></tr></thead>
+  <tbody>${habitRows}</tbody></table>
+</div>
+
+${stats.nutAvg ? `<div class="section">
+  <h2>Nutrition Averages (${stats.nutCount} days)</h2>
+  <div class="nut-grid">
+    <div class="nut-item"><div class="nut-val">${stats.nutAvg.calories}</div><div class="nut-lbl">Calories</div></div>
+    <div class="nut-item"><div class="nut-val">${stats.nutAvg.protein}g</div><div class="nut-lbl">Protein</div></div>
+    <div class="nut-item"><div class="nut-val">${stats.nutAvg.carbs}g</div><div class="nut-lbl">Carbs</div></div>
+    <div class="nut-item"><div class="nut-val">${stats.nutAvg.fat}g</div><div class="nut-lbl">Fat</div></div>
+  </div>
+</div>` : ""}
+
+<div class="section">
+  <h2>Activity</h2>
+  <table>
+    <tr><td>Focus Sessions</td><td><strong>${stats.focusSessions}</strong> sessions (${stats.focusHours} hours)</td></tr>
+    <tr><td>Meditation</td><td><strong>${stats.medSessions}</strong> sessions (${stats.medMinutes} min)</td></tr>
+    <tr><td>Journal Entries</td><td><strong>${stats.journalDays}</strong></td></tr>
+    <tr><td>Active Goals</td><td><strong>${stats.activeGoals}</strong></td></tr>
+  </table>
+</div>
+
+${reviewHtml}
+
+</body></html>`;
+
+    const printWindow = window.open("", "_blank", "width=800,height=600");
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  }, [stats, review, weekLabel, HABITS_LIST]);
+
   const weekLabel = useMemo(() => {
     const end = addDays(weekStart, 6);
     const s = weekStart.toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -201,6 +321,10 @@ export default function WeeklyReviewPage() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 6 15 12 9 18" /></svg>
           </button>
           <button className="btn btnPrimary" onClick={() => setWeekStart(startOfWeekMonday(new Date()))}>This Week</button>
+          <button className="btn" onClick={exportPdf} title="Export PDF" style={{ marginLeft: 8, display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
+            Export PDF
+          </button>
         </div>
       </div>
 

@@ -9,6 +9,8 @@ import { getVerseForDate } from "../lib/bible.js";
 import { playBell } from "../lib/sounds.js";
 import AutoGrowTextarea from "../components/AutoGrowTextarea.jsx";
 import StarRating from "../components/StarRating.jsx";
+import { ConfettiCelebration, MilestoneToast } from "../components/Celebration.jsx";
+import { generateSmartInsights } from "../lib/smartInsights.js";
 
 const plannerApi = typeof window !== "undefined" ? window.plannerApi : null;
 const workoutApi = typeof window !== "undefined" ? window.workoutApi : null;
@@ -68,6 +70,8 @@ export default function DashboardPage({ onNavigate }) {
   const [suppLog, setSuppLog] = useState({});
   const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
   const [activeProjects, setActiveProjects] = useState([]);
+  const [sleepRange, setSleepRange] = useState({});
+  const [meditationRange, setMeditationRange] = useState({});
 
   // ── Focus timer ──
   const [focusMode, setFocusMode] = useState("work");
@@ -180,8 +184,16 @@ export default function DashboardPage({ onNavigate }) {
         setAffirmations((a || []).filter(af => af.active !== false));
       }
       if (waterApi) setWaterData(await waterApi.get(todayStr));
-      if (sleepApi) setSleepData(await sleepApi.get(todayStr));
-      if (meditationApi) setMeditationData(await meditationApi.get(todayStr));
+      if (sleepApi) {
+        setSleepData(await sleepApi.get(todayStr));
+        const sr = await sleepApi.range(ymd(addDays(today, -30)), todayStr);
+        setSleepRange(sr || {});
+      }
+      if (meditationApi) {
+        setMeditationData(await meditationApi.get(todayStr));
+        const mr = await meditationApi.range(ymd(addDays(today, -30)), todayStr);
+        setMeditationRange(mr || {});
+      }
       if (supplementsApi) {
         const sl = await supplementsApi.list();
         setSupplements((sl || []).filter(s => s.active !== false));
@@ -334,7 +346,8 @@ export default function DashboardPage({ onNavigate }) {
   }, [allData, HABITS_LIST]);
 
   // Insights
-  const insights = useMemo(() => {
+  // Today's quick tips
+  const todayTips = useMemo(() => {
     const tips = [];
     if (habitsPct < 50 && habitsPct > 0) tips.push({ type: "warn", text: `Habits at ${habitsPct}% — try to complete at least half today.` });
     if (habitsPct >= 90) tips.push({ type: "good", text: "Crushing your habits today! Keep it up." });
@@ -346,6 +359,20 @@ export default function DashboardPage({ onNavigate }) {
     if (momentumStreak.current >= 3 && momentumStreak.current < 7) tips.push({ type: "good", text: `${momentumStreak.current}-day streak — keep the momentum going!` });
     return tips;
   }, [habitsPct, sleepHours, waterPct, waterGlasses, waterGoal, focusSessions, momentumStreak]);
+
+  // Smart AI insights (pattern detection from historical data)
+  const smartInsights = useMemo(() => {
+    return generateSmartInsights(allData, sleepRange, null, meditationRange, null, HABITS_LIST);
+  }, [allData, sleepRange, meditationRange, HABITS_LIST]);
+
+  const insights = useMemo(() => {
+    // Combine today's tips with smart insights, deduped
+    return [...todayTips, ...smartInsights.map(s => ({
+      type: s.type === "good" ? "good" : s.type === "action" ? "warn" : "tip",
+      text: s.text,
+      emoji: s.emoji,
+    }))].slice(0, 6);
+  }, [todayTips, smartInsights]);
 
   // Reminders
   const reminders = useMemo(() => {
@@ -369,11 +396,45 @@ export default function DashboardPage({ onNavigate }) {
 
   const scoreColor = dailyScore.pct >= 80 ? "#4caf50" : dailyScore.pct >= 50 ? "var(--accent)" : "#ff9800";
 
+  // ── Celebrations ──
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [toast, setToast] = useState(null);
+  const celebratedRef = useRef(new Set());
+
+  const celebrate = useCallback((key, emoji, message) => {
+    if (celebratedRef.current.has(key)) return;
+    celebratedRef.current.add(key);
+    setShowConfetti(true);
+    setToast({ emoji, message });
+  }, []);
+
+  // Watch for milestone achievements
+  useEffect(() => {
+    if (!dayData) return;
+    // All habits completed
+    if (habitsPct === 100 && HABITS_LIST.length > 0) celebrate("habits100", "🔥", "All habits completed! Perfect day!");
+    // Water goal hit
+    if (waterPct >= 100) celebrate("water100", "💧", "Water goal reached!");
+    // All supplements taken
+    if (suppTotal > 0 && suppDone === suppTotal) celebrate("supps100", "💊", "All supplements taken!");
+    // Daily score 100%
+    if (dailyScore.pct === 100) celebrate("score100", "🏆", "Perfect daily score! Incredible!");
+    // Daily score 80%+
+    else if (dailyScore.pct >= 80 && !celebratedRef.current.has("score80")) celebrate("score80", "⭐", "Daily score above 80%! Great work!");
+    // Streak milestones
+    if (momentumStreak.current === 7) celebrate("streak7", "🔥", "7-day streak! One full week!");
+    if (momentumStreak.current === 14) celebrate("streak14", "🔥", "14-day streak! Two weeks strong!");
+    if (momentumStreak.current === 30) celebrate("streak30", "🏅", "30-day streak! Unstoppable!");
+  }, [habitsPct, waterPct, suppDone, suppTotal, dailyScore.pct, momentumStreak.current, dayData, HABITS_LIST, celebrate]);
+
   // ══════════════════════════════════════════
   // RENDER
   // ══════════════════════════════════════════
   return (
     <div className="dashPage">
+      <ConfettiCelebration show={showConfetti} onDone={() => setShowConfetti(false)} />
+      <MilestoneToast show={!!toast} emoji={toast?.emoji} message={toast?.message} onDone={() => setToast(null)} />
+
       {/* ── Topbar ── */}
       <div className="topbar">
         <div className="topbarLeft">
@@ -441,10 +502,10 @@ export default function DashboardPage({ onNavigate }) {
             {insights.length > 0 && (
               <div className="dashInsights">
                 <div className="dashInsightsTitle">Insights</div>
-                {insights.slice(0, 3).map((tip, i) => (
+                {insights.slice(0, 5).map((tip, i) => (
                   <div key={i} className={`dashInsightItem dashInsight-${tip.type}`}>
                     <span className="dashInsightIcon">
-                      {tip.type === "good" ? "✓" : tip.type === "warn" ? "!" : "💡"}
+                      {tip.emoji || (tip.type === "good" ? "✓" : tip.type === "warn" ? "!" : "💡")}
                     </span>
                     {tip.text}
                   </div>
@@ -529,7 +590,24 @@ export default function DashboardPage({ onNavigate }) {
               </div>
               {goals.length > 0 ? (
                 <div className="dashGoalsList">
-                  {goals.map(g => <div key={g.id} className="dashGoalItem">{g.title}</div>)}
+                  {goals.map(g => {
+                    const ms = g.milestones || [];
+                    const done = ms.filter(m => m.done).length;
+                    const pct = ms.length ? Math.round((done / ms.length) * 100) : 0;
+                    return (
+                      <div key={g.id} className="dashGoalItem">
+                        <div className="dashGoalName">{g.title}</div>
+                        {ms.length > 0 && (
+                          <div className="dashGoalProgress">
+                            <div className="progressBar" style={{ height: 4, flex: 1 }}>
+                              <div className="progressFill" style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="dashGoalPct">{done}/{ms.length}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               ) : <div className="dashCardMeta">No goals yet</div>}
             </button>
